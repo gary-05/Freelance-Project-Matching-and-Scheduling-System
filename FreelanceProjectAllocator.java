@@ -5,7 +5,8 @@ import java.util.Comparator;
 import java.util.List;
 
 public class FreelanceProjectAllocator {
-	public static class KMPMatcher {
+	public static class KMPMatcher 
+	{
 	    private static int[] buildLPS(String pattern) {
 	        int[] lps = new int[pattern.length()];
 	        int len = 0, i = 1;
@@ -87,7 +88,6 @@ public class FreelanceProjectAllocator {
             }
         }
 
-        
         // Reconstruct selected projects
         int i = n - 1;
         while (i >= 0) {
@@ -99,6 +99,7 @@ public class FreelanceProjectAllocator {
                 i--;
             }
         }  
+        
         Collections.reverse(selectedProjects);
 
         return dp[n - 1];
