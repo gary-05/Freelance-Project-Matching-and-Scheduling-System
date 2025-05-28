@@ -5,14 +5,19 @@ import javax.swing.border.TitledBorder;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import java.io.*;
 
 public class FreelanceMatchGUI extends JFrame {
-	private static final long serialVersionUID = 1L;  
-    private JTextArea skillsInput;
+    private static final long serialVersionUID = 1L;
     private JTextArea resultsArea;
     private JButton matchButton;
     private JLabel statusLabel;
     private final List<Project> allProjects = new ArrayList<>();
+    private JComboBox<String>[] skillDropdowns;
+    private static final String[] predefinedSkills = {
+        "Java", "Python", "Web Development", "C++", "Machine Learning", "Android", "React", "Data Science",
+        "Frontend","Backend","Full Stack Development","HTML","UI/UX Design","JavaScript","Spring Boot","SQL"
+    };
 
     public FreelanceMatchGUI() {
         setupUI();
@@ -36,47 +41,53 @@ public class FreelanceMatchGUI extends JFrame {
 
         setContentPane(mainPanel);
     }
-
+    
     private JPanel createInputPanel() {
         JPanel inputPanel = new JPanel(new BorderLayout(10, 10));
-        TitledBorder inputBorder = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Your Skills");
-        inputBorder.setTitleFont(new Font("Arial", Font.BOLD, 14));
+        TitledBorder inputBorder = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Select Your Skills");
+        inputBorder.setTitleFont(new Font("Arial", Font.BOLD, 18));
         inputPanel.setBorder(BorderFactory.createCompoundBorder(inputBorder, BorderFactory.createEmptyBorder(10, 10, 10, 10)));
 
-        skillsInput = new JTextArea(4, 40);
-        skillsInput.setFont(new Font("Arial", Font.PLAIN, 14));
-        skillsInput.setLineWrap(true);
-        skillsInput.setWrapStyleWord(true);
-        skillsInput.setText("Enter your skills (comma-separated), e.g.: Java, Python, Web Development");
-        JScrollPane skillsScrollPane = new JScrollPane(skillsInput);
+        JPanel dropdownPanel = new JPanel(new GridLayout(4, 4, 10, 10));
+        skillDropdowns = new JComboBox[3];
+        
+        for (int i = 0; i < skillDropdowns.length; i++) {
+            JLabel label = new JLabel("User Skill " + (i + 1) + ":");
+            label.setFont(new Font("Arial", Font.PLAIN, 17));
+            dropdownPanel.add(label);
+            
+            String[] skillsWithNone = new String[predefinedSkills.length + 1];
+            skillsWithNone[0] = "None";
+            System.arraycopy(predefinedSkills, 0, skillsWithNone, 1, predefinedSkills.length);
 
-        JLabel helpLabel = new JLabel("Enter your skills separated by commas");
-        helpLabel.setFont(new Font("Arial", Font.ITALIC, 12));
+            skillDropdowns[i] = new JComboBox<>(skillsWithNone);
+            skillDropdowns[i].setSelectedIndex(0);
+            dropdownPanel.add(skillDropdowns[i]);
+        }
+        
+        
 
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
         matchButton = new JButton("Match Projects");
-        matchButton.setFont(new Font("Arial", Font.BOLD, 12));
+        matchButton.setFont(new Font("Arial", Font.BOLD, 15));
         buttonsPanel.add(matchButton);
 
-        JPanel topPanel = new JPanel(new BorderLayout());
-        topPanel.add(helpLabel, BorderLayout.NORTH);
-        topPanel.add(skillsScrollPane, BorderLayout.CENTER);
-
-        inputPanel.add(topPanel, BorderLayout.CENTER);
+        inputPanel.add(dropdownPanel, BorderLayout.CENTER);
         inputPanel.add(buttonsPanel, BorderLayout.SOUTH);
 
         return inputPanel;
     }
 
+
     private JPanel createResultsPanel() {
         JPanel resultsPanel = new JPanel(new BorderLayout(10, 10));
         TitledBorder resultsBorder = BorderFactory.createTitledBorder(BorderFactory.createEtchedBorder(), "Matched Projects");
-        resultsBorder.setTitleFont(new Font("Arial", Font.BOLD, 14));
+        resultsBorder.setTitleFont(new Font("Arial", Font.BOLD, 18));
         resultsPanel.setBorder(BorderFactory.createCompoundBorder(resultsBorder, BorderFactory.createEmptyBorder(10, 10, 10, 10)));
 
         resultsArea = new JTextArea();
         resultsArea.setEditable(false);
-        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 14));
+        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 16));
         resultsArea.setLineWrap(true);
         resultsArea.setWrapStyleWord(true);
         resultsArea.setText("Project matches will appear here...");
@@ -98,20 +109,15 @@ public class FreelanceMatchGUI extends JFrame {
     }
 
     private void initializeComponents() {
-        skillsInput.addFocusListener(new java.awt.event.FocusAdapter() {
-            public void focusGained(java.awt.event.FocusEvent evt) {
-                if (skillsInput.getText().contains("Enter your skills")) {
-                    skillsInput.setText("");
+        matchButton.addActionListener(e -> {
+            Set<String> skillSet = new HashSet<>();
+            for (JComboBox<String> comboBox : skillDropdowns) {
+                String selected = (String) comboBox.getSelectedItem();
+                if (selected != null && !selected.equals("None") && !selected.trim().isEmpty()) {
+                    skillSet.add(selected.trim().toLowerCase());
                 }
             }
-        });
 
-        matchButton.addActionListener(e -> {
-            String[] userSkills = skillsInput.getText().toLowerCase().split(",");
-            Set<String> skillSet = new HashSet<>();
-            for (String skill : userSkills) {
-                skillSet.add(skill.trim());
-            }
 
             List<Project> filtered = new ArrayList<>();
             Set<String> unmatchedSkillsInDescription = new HashSet<>();
@@ -119,7 +125,6 @@ public class FreelanceMatchGUI extends JFrame {
             for (Project p : allProjects) {
                 boolean matched = false;
 
-                // Check required skills with KMP & equalsIgnoreCase
                 for (String required : p.requiredSkills) {
                     for (String skill : skillSet) {
                         String skillLower = skill.toLowerCase();
@@ -134,7 +139,6 @@ public class FreelanceMatchGUI extends JFrame {
                     if (matched) break;
                 }
 
-                // If not matched yet, check description via KMP for user skills
                 if (!matched) {
                     for (String userSkill : skillSet) {
                         if (FreelanceProjectAllocator.KMPMatcher.kmpMatch(p.description, userSkill)) {
@@ -148,7 +152,6 @@ public class FreelanceMatchGUI extends JFrame {
                     filtered.add(p);
                 }
 
-                // Check for unmatched skills mentioned in description but not required
                 for (String userSkill : skillSet) {
                     if (FreelanceProjectAllocator.KMPMatcher.kmpMatch(p.description, userSkill)) {
                         boolean inRequired = false;
@@ -165,41 +168,76 @@ public class FreelanceMatchGUI extends JFrame {
                 }
             }
 
-
             if (filtered.isEmpty()) {
-        	    resultsArea.setText("No matching projects found for the entered skill.");
-        	    
-        	}
-                       
-            else {
-            	List<Project> selected = new ArrayList<>();
-            	int maxEarnings = FreelanceProjectAllocator.maximizeEarnings(filtered, selected);
-            	StringBuilder sb = new StringBuilder();
-            	sb.append("Maximum Earnings: Rs.").append(maxEarnings).append("\n\n");
-            	sb.append("Selected Projects:\n");
-            	for (Project p : selected) {
-            		sb.append("- ").append(p.toString()).append("\n");
-            	}
-            	if (!unmatchedSkillsInDescription.isEmpty()) {
-            	    sb.append("\nNote: The following skills were found in descriptions but not listed as required skills:\n");
-            	    for (String skill : unmatchedSkillsInDescription) {
-            	        sb.append("- ").append(skill).append("\n");
-            	    }
-            	}
-
-
-            resultsArea.setText(sb.toString());
-            statusLabel.setText("Matched " + selected.size() + " project(s).");
+                resultsArea.setText("No matching projects found for the selected skills.");
+            } else {
+                List<Project> selected = new ArrayList<>();
+                int maxEarnings = FreelanceProjectAllocator.maximizeEarnings(filtered, selected);
+                StringBuilder sb = new StringBuilder();
+                sb.append("Maximum Earnings: Rs.").append(maxEarnings).append("\n\n");
+                sb.append("Selected Projects:\n");
+                for (Project p : selected) {
+                    sb.append("- ").append(p.toString()).append("\n");
+                }
+                if (!unmatchedSkillsInDescription.isEmpty()) {
+                    sb.append("\nNote: These skills were found in project descriptions but not marked as required:\n");
+                    for (String skill : unmatchedSkillsInDescription) {
+                        sb.append("- ").append(skill).append("\n");
+                    }
+                }
+                resultsArea.setText(sb.toString());
+                statusLabel.setText("Matched " + selected.size() + " project(s).");
             }
         });
     }
 
     private void populateSampleProjects() {
-        allProjects.add(new Project("Project A", "Simple Java", new String[]{"Java"}, 1, 3, 50));
-        allProjects.add(new Project("Project B", "Frontend Fix", new String[]{"HTML", "CSS"}, 2, 5, 60));
-        allProjects.add(new Project("Project C", "API Dev", new String[]{"Java", "Spring"}, 4, 6, 70));
-        allProjects.add(new Project("Project D", "Bug Fixing", new String[]{"Java"}, 6, 7, 30));
-        
+        allProjects.clear();
+        String csvFile = "project_dataset.csv";
+        String line;
+        try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
+            br.readLine(); // skip header
+            while ((line = br.readLine()) != null) {
+                String[] parts = parseCSVLine(line);
+                if (parts.length < 7) continue;
+                String id = parts[0].trim();
+                String name = parts[1].trim();
+                String description = parts[2].trim();
+                String[] skills = parts[3].replace("\"", "").split(";");
+                int start = parseDateToInt(parts[4].trim());
+                int end = parseDateToInt(parts[5].trim());
+                int earnings = Integer.parseInt(parts[6].trim());
+                allProjects.add(new Project(id, name, description, skills, start, end, earnings));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String[] parseCSVLine(String line) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
+        boolean inQuotes = false;
+        for (char c : line.toCharArray()) {
+            if (c == '\"') {
+                inQuotes = !inQuotes;
+            } else if (c == ',' && !inQuotes) {
+                tokens.add(sb.toString());
+                sb.setLength(0);
+            } else {
+                sb.append(c);
+            }
+        }
+        tokens.add(sb.toString());
+        return tokens.toArray(new String[0]);
+    }
+
+    private int parseDateToInt(String dateStr) {
+        try {
+            return Integer.parseInt(dateStr.replace("-", ""));
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     public static void main(String[] args) {
